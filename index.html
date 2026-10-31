@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bütçem | Kişisel Finans ve Bütçe Takip Portalı</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        },
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card-light {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-20 md:pb-6 transition-colors duration-300">
+
+    <!-- TOP BAR / HEADER -->
+    <header class="sticky top-0 z-30 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-4 py-3 md:px-8">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid font-bold fa-wallet text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">Bütçem Pro</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Akıllı Bütçe ve Harcama Yönetimi</p>
+                </div>
+            </div>
+
+            <!-- Header Controls & Month Selector -->
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- Dönem Seçici -->
+                <div class="flex items-center bg-slate-800/80 border border-slate-700/60 rounded-xl p-1">
+                    <button id="prevMonthBtn" onclick="changeMonth(-1)" class="p-1.5 hover:bg-slate-700 rounded-lg transition"><i class="fa-solid fa-chevron-left text-xs text-slate-300"></i></button>
+                    <span id="currentMonthDisplay" class="px-2 sm:px-3 text-xs sm:text-sm font-semibold text-slate-200 select-none">Ekim 2026</span>
+                    <button id="nextMonthBtn" onclick="changeMonth(1)" class="p-1.5 hover:bg-slate-700 rounded-lg transition"><i class="fa-solid fa-chevron-right text-xs text-slate-300"></i></button>
+                </div>
+
+                <!-- Veri İçe / Dışa Aktar -->
+                <button onclick="exportJSON()" title="Verileri JSON İndir" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-xl hover:bg-emerald-600/30 transition">
+                    <i class="fa-solid fa-download"></i> JSON İndir
+                </button>
+                <label title="JSON Yükle" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl hover:bg-indigo-600/30 transition cursor-pointer">
+                    <i class="fa-solid fa-upload"></i> Yükle
+                    <input type="file" id="importJsonInput" accept=".json" onchange="importJSON(event)" class="hidden">
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-col md:flex-row gap-6">
+
+        <!-- DESKTOP SIDEBAR NAVIGATION -->
+        <aside class="hidden md:flex flex-col w-64 shrink-0 gap-2">
+            <nav class="sticky top-24 space-y-1 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-white bg-indigo-600 shadow-lg shadow-indigo-600/30">
+                    <i class="fa-solid fa-chart-pie text-base"></i> Genel Özet
+                </button>
+                <button onclick="switchTab('transactions')" id="nav-transactions" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                    <i class="fa-solid fa-receipt text-base"></i> Anlık Harcamalar
+                </button>
+                <button onclick="switchTab('installments')" id="nav-installments" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                    <i class="fa-solid fa-credit-card text-base"></i> Taksitli Ödemeler
+                </button>
+                <button onclick="switchTab('fixed')" id="nav-fixed" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                    <i class="fa-solid fa-calendar-check text-base"></i> Sabit Giderler
+                </button>
+                <button onclick="switchTab('categories')" id="nav-categories" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                    <i class="fa-solid fa-tags text-base"></i> Kategoriler
+                </button>
+                <button onclick="switchTab('statistics')" id="nav-statistics" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                    <i class="fa-solid fa-chart-line text-base"></i> Detaylı İstatistikler
+                </button>
+                
+                <hr class="border-slate-800 my-3">
+
+                <!-- Mobile Json Buttons duplicate inside side nav for tablets/small desktops -->
+                <div class="pt-2 space-y-2">
+                    <button onclick="exportJSON()" class="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-600/20">
+                        <i class="fa-solid fa-download"></i> Yedek İndir (JSON)
+                    </button>
+                    <label class="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 rounded-xl hover:bg-indigo-600/20 cursor-pointer">
+                        <i class="fa-solid fa-upload"></i> Yedek Yükle (JSON)
+                        <input type="file" onchange="importJSON(event)" accept=".json" class="hidden">
+                    </label>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 min-w-0">
+
+            <!-- METRIC CARDS OVERVIEW (Always Visible Top Summary) -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                <!-- Gelir Card -->
+                <div class="glass-card p-4 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute -right-2 -bottom-2 opacity-10 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-arrow-trend-up text-6xl text-emerald-400"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Aylık Toplam Gelir</p>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span id="cardIncome" class="text-lg sm:text-2xl font-bold text-emerald-400">₺0.00</span>
+                    </div>
+                    <button onclick="openIncomeModal()" class="mt-2 text-[11px] text-emerald-400/80 hover:text-emerald-300 flex items-center gap-1 font-medium">
+                        <i class="fa-solid fa-pen-to-square"></i> Gelirleri Yönet / Ekle
+                    </button>
+                </div>
+
+                <!-- Sabit & Taksit Yükü -->
+                <div class="glass-card p-4 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute -right-2 -bottom-2 opacity-10 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-calendar-minus text-6xl text-amber-400"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sabit + Taksit</p>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span id="cardFixedAndInstallment" class="text-lg sm:text-2xl font-bold text-amber-400">₺0.00</span>
+                    </div>
+                    <p class="mt-2 text-[11px] text-slate-400 truncate">Otomatik Başlangıç Yükü</p>
+                </div>
+
+                <!-- Anlık Değişken Harcamalar -->
+                <div class="glass-card p-4 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute -right-2 -bottom-2 opacity-10 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-cart-shopping text-6xl text-rose-400"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ek Harcamalar</p>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span id="cardVariable" class="text-lg sm:text-2xl font-bold text-rose-400">₺0.00</span>
+                    </div>
+                    <p class="mt-2 text-[11px] text-slate-400 truncate">Bu ayki ekstra harcama</p>
+                </div>
+
+                <!-- Kalan Bütçe / Net Durum -->
+                <div class="glass-card p-4 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute -right-2 -bottom-2 opacity-10 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-piggy-bank text-6xl text-indigo-400"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Net Kalan Bütçe</p>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span id="cardRemaining" class="text-lg sm:text-2xl font-bold text-indigo-400">₺0.00</span>
+                    </div>
+                    <p id="cardTotalExpenseSub" class="mt-2 text-[11px] text-slate-400 truncate">Toplam Gider: ₺0</p>
+                </div>
+            </div>
+
+            <!-- TAB 1: DASHBOARD (GENEL ÖZET) -->
+            <div id="tab-dashboard" class="tab-content space-y-6">
+
+                <!-- Quick Actions & Banner -->
+                <div class="bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-slate-900 border border-indigo-500/20 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="space-y-1 text-center sm:text-left">
+                        <h2 class="text-lg font-bold text-white flex items-center justify-center sm:justify-start gap-2">
+                            <i class="fa-solid fa-sparkles text-amber-400"></i> Hızlı İşlem & Ay Durumu
+                        </h2>
+                        <p class="text-xs text-slate-300">Seçili ay için yeni bir harcama veya taksit tanımı ekleyin.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 justify-center">
+                        <button onclick="openIncomeModal()" class="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-md transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Gelir Ekle
+                        </button>
+                        <button onclick="openTransactionModal()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Harcama Ekle
+                        </button>
+                        <button onclick="openInstallmentModal()" class="px-4 py-2 text-xs font-semibold bg-amber-600/80 hover:bg-amber-600 text-white rounded-xl shadow-md transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-credit-card"></i> Taksit Tanımla
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Monthly Summary Tables (Taksitler + Sabit + Son Harcamalar) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- Aktif Ayın Otomatik Yansıtılan Taksitleri -->
+                    <div class="glass-card p-5 rounded-2xl space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-layer-group text-amber-400"></i> Bu Ay Ödenecek Taksitler
+                            </h3>
+                            <span id="dashInstallmentBadge" class="px-2 py-0.5 text-xs rounded-lg bg-amber-500/10 text-amber-400 font-medium">0 Taksit</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="text-[11px] uppercase bg-slate-800/50 text-slate-400 border-b border-slate-700/50">
+                                    <tr>
+                                        <th class="py-2.5 px-3">Taksit Adı</th>
+                                        <th class="py-2.5 px-3">Kategori</th>
+                                        <th class="py-2.5 px-3">Kalan / Toplam</th>
+                                        <th class="py-2.5 px-3 text-right">Tutar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashInstallmentsList" class="divide-y divide-slate-800/60">
+                                    <!-- Dynamic -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Aktif Ayın Sabit Giderleri -->
+                    <div class="glass-card p-5 rounded-2xl space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-file-invoice-dollar text-sky-400"></i> Bu Ayki Sabit Giderler
+                            </h3>
+                            <button onclick="switchTab('fixed')" class="text-xs text-indigo-400 hover:underline">Yönet / Düzenle</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="text-[11px] uppercase bg-slate-800/50 text-slate-400 border-b border-slate-700/50">
+                                    <tr>
+                                        <th class="py-2.5 px-3">Gider Adı</th>
+                                        <th class="py-2.5 px-3">Kategori</th>
+                                        <th class="py-2.5 px-3 text-right">Aylık Tutar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashFixedList" class="divide-y divide-slate-800/60">
+                                    <!-- Dynamic -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Son Eklenen Harcamalar -->
+                <div class="glass-card p-5 rounded-2xl space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Bu Ayki Son Ekstra Harcamalar
+                        </h3>
+                        <button onclick="switchTab('transactions')" class="text-xs text-indigo-400 hover:underline">Tümünü Gör</button>
+                    </div>
+                    <div id="dashRecentTransactions" class="space-y-2">
+                        <!-- Dynamic list -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: ANLIK HARCAMALAR -->
+            <div id="tab-transactions" class="tab-content hidden space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 glass-card p-4 rounded-2xl">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-100">Anlık & Değişken Harcamalar</h2>
+                        <p class="text-xs text-slate-400">Market, dışarıda yemek, eğlence gibi o aya özel günlük harcamalarınız.</p>
+                    </div>
+                    <button onclick="openTransactionModal()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow transition flex items-center gap-1.5 w-full sm:w-auto justify-center">
+                        <i class="fa-solid fa-plus"></i> Yeni Harcama Ekle
+                    </button>
+                </div>
+
+                <!-- Harcama Filtre & Arama -->
+                <div class="flex gap-2">
+                    <input type="text" id="searchTransactionInput" oninput="renderTransactions()" placeholder="Harcamalarda ara..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200">
+                </div>
+
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="text-[11px] uppercase bg-slate-800/80 text-slate-400 border-b border-slate-700">
+                                <tr>
+                                    <th class="py-3 px-4">Tarih</th>
+                                    <th class="py-3 px-4">Açıklama</th>
+                                    <th class="py-3 px-4">Kategori</th>
+                                    <th class="py-3 px-4">Alt Kategori</th>
+                                    <th class="py-3 px-4 text-right">Tutar</th>
+                                    <th class="py-3 px-4 text-center">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fullTransactionsTable" class="divide-y divide-slate-800">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: TAKSİTLİ ÖDEMELER -->
+            <div id="tab-installments" class="tab-content hidden space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 glass-card p-4 rounded-2xl">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-100">Kredili & Taksitli Ödemeler</h2>
+                        <p class="text-xs text-slate-400">Taksitlerinizi bir kere ekleyin; sistem her ay otomatik olarak kalan taksit sayısını ve tutarı bütçenize yansıtsın.</p>
+                    </div>
+                    <button onclick="openInstallmentModal()" class="px-4 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow transition flex items-center gap-1.5 w-full sm:w-auto justify-center">
+                        <i class="fa-solid fa-plus"></i> Yeni Taksit Tanımla
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="installmentsCardsContainer">
+                    <!-- Dynamic Installment Cards -->
+                </div>
+            </div>
+
+            <!-- TAB 4: SABİT GİDERLER -->
+            <div id="tab-fixed" class="tab-content hidden space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 glass-card p-4 rounded-2xl">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-100">Sabit Giderler & Faturalar</h2>
+                        <p class="text-xs text-slate-400">Kira, internet, fatura ve abonelikleriniz. Fiyatı değiştiğinde kolayca güncelleyebilirsiniz.</p>
+                    </div>
+                    <button onclick="openFixedModal()" class="px-4 py-2 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow transition flex items-center gap-1.5 w-full sm:w-auto justify-center">
+                        <i class="fa-solid fa-plus"></i> Sabit Gider Ekle
+                    </button>
+                </div>
+
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="text-[11px] uppercase bg-slate-800/80 text-slate-400 border-b border-slate-700">
+                                <tr>
+                                    <th class="py-3 px-4">Gider Adı</th>
+                                    <th class="py-3 px-4">Kategori</th>
+                                    <th class="py-3 px-4 text-right">Aylık Tutar</th>
+                                    <th class="py-3 px-4 text-center">Durum</th>
+                                    <th class="py-3 px-4 text-center">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fixedExpensesTable" class="divide-y divide-slate-800">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: KATEGORİ YÖNETİMİ -->
+            <div id="tab-categories" class="tab-content hidden space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 glass-card p-4 rounded-2xl">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-100">Kategori ve Alt Kategori Yönetimi</h2>
+                        <p class="text-xs text-slate-400">Tüm harcamalarınızı özelleştirilmiş kategorilerle detaylıca gruplayın.</p>
+                    </div>
+                    <button onclick="openCategoryModal()" class="px-4 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow transition flex items-center gap-1.5 w-full sm:w-auto justify-center">
+                        <i class="fa-solid fa-plus"></i> Yeni Kategori Ekle
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="categoriesGrid">
+                    <!-- Dynamic Categories Cards -->
+                </div>
+            </div>
+
+            <!-- TAB 6: DETAYLI İSTATİSTİKLER -->
+            <div id="tab-statistics" class="tab-content hidden space-y-6">
+                <div class="glass-card p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-100">Detaylı Finansal İstatistikler</h2>
+                        <p class="text-xs text-slate-400">Aylık dağılımlar, taksit projeksiyonları ve harcama analizleri.</p>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Pie Chart: Categories -->
+                    <div class="glass-card p-5 rounded-2xl space-y-3">
+                        <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-indigo-400"></i> Bu Ayki Kategori Dağılımı
+                        </h3>
+                        <div class="relative h-64 w-full flex items-center justify-center">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Doughnut Chart: Expense Breakdown -->
+                    <div class="glass-card p-5 rounded-2xl space-y-3">
+                        <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-donut text-emerald-400"></i> Gider Tipi Dağılımı (Sabit / Taksit / Ekstra)
+                        </h3>
+                        <div class="relative h-64 w-full flex items-center justify-center">
+                            <canvas id="breakdownChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 2 -->
+                <div class="glass-card p-5 rounded-2xl space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-column text-amber-400"></i> Gelecek 6 Ayın Taksit ve Borç Yükü Projeksiyonu
+                    </h3>
+                    <div class="relative h-72 w-full">
+                        <canvas id="projectionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 border-t border-slate-800 backdrop-blur-lg px-2 py-1.5">
+        <div class="flex justify-around items-center">
+            <button onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="mobile-nav-btn flex flex-col items-center gap-0.5 p-1.5 text-indigo-400">
+                <i class="fa-solid fa-chart-pie text-lg"></i>
+                <span class="text-[10px] font-medium">Özet</span>
+            </button>
+            <button onclick="switchTab('transactions')" id="mobile-nav-transactions" class="mobile-nav-btn flex flex-col items-center gap-0.5 p-1.5 text-slate-400">
+                <i class="fa-solid fa-receipt text-lg"></i>
+                <span class="text-[10px] font-medium">Harcama</span>
+            </button>
+            <button onclick="switchTab('installments')" id="mobile-nav-installments" class="mobile-nav-btn flex flex-col items-center gap-0.5 p-1.5 text-slate-400">
+                <i class="fa-solid fa-credit-card text-lg"></i>
+                <span class="text-[10px] font-medium">Taksit</span>
+            </button>
+            <button onclick="switchTab('fixed')" id="mobile-nav-fixed" class="mobile-nav-btn flex flex-col items-center gap-0.5 p-1.5 text-slate-400">
+                <i class="fa-solid fa-calendar-check text-lg"></i>
+                <span class="text-[10px] font-medium">Sabit</span>
+            </button>
+            <button onclick="switchTab('statistics')" id="mobile-nav-statistics" class="mobile-nav-btn flex flex-col items-center gap-0.5 p-1.5 text-slate-400">
+                <i class="fa-solid fa-chart-line text-lg"></i>
+                <span class="text-[10px] font-medium">Analiz</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- MODALS SECTION -->
+
+    <!-- MODAL: Gelir Yönetimi / Ekleme -->
+    <div id="incomeModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-money-bill-wave text-emerald-400"></i> Gelir Kalemleri Yönetimi
+                </h3>
+                <button onclick="closeModal('incomeModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <!-- Yeni Gelir Ekleme Formu -->
+            <form id="incomeForm" onsubmit="addIncomeItem(event)" class="space-y-3 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
+                <p class="text-xs font-semibold text-emerald-400">+ Yeni Gelir Kalemi Ekle</p>
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                    <div class="sm:col-span-3">
+                        <input type="text" id="incTitle" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" placeholder="Gelir Adı (Örn: Maaş, Ek Gelir)">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <input type="number" id="incAmount" step="0.01" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" placeholder="Tutar (₺)">
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="px-3 py-1.5 text-xs bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-500 transition">Listeye Ekle</button>
+                </div>
+            </form>
+
+            <!-- Aktif Dönem Gelir Listesi -->
+            <div class="space-y-2">
+                <div class="flex justify-between items-center">
+                    <p class="text-xs font-semibold text-slate-300">Bu Ayın Gelir Kalemleri</p>
+                    <span id="incomeModalTotal" class="text-xs font-bold text-emerald-400">Toplam: ₺0.00</span>
+                </div>
+                <div id="incomeItemsList" class="max-h-52 overflow-y-auto space-y-2 pr-1">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-800">
+                <button onclick="closeModal('incomeModal')" class="px-4 py-2 text-xs bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Anlık Harcama Ekle -->
+    <div id="transactionModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-plus text-indigo-400"></i> Yeni Harcama Ekle
+                </h3>
+                <button onclick="closeModal('transactionModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="transactionForm" onsubmit="handleTransactionSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Harcama Açıklaması</label>
+                    <input type="text" id="txTitle" required placeholder="Örn: Market alışverişi" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Tutar (₺)</label>
+                    <input type="number" id="txAmount" step="0.01" required placeholder="0.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Kategori</label>
+                        <select id="txCategory" onchange="updateSubCategoryDropdown('txCategory', 'txSubCategory')" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+                            <!-- Dynamic -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Alt Kategori</label>
+                        <select id="txSubCategory" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+                            <!-- Dynamic -->
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Tarih</label>
+                    <input type="date" id="txDate" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('transactionModal')" class="px-4 py-2 text-xs bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700">İptal</button>
+                    <button type="submit" class="px-4 py-2 text-xs bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-500">Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Taksit Ekle -->
+    <div id="installmentModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-credit-card text-amber-400"></i> Yeni Taksitli Ödeme Ekle
+                </h3>
+                <button onclick="closeModal('installmentModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="installmentForm" onsubmit="handleInstallmentSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Taksit Adı / Başlık</label>
+                    <input type="text" id="instTitle" required placeholder="Örn: Telefon Taksidi" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Toplam Tutar (₺)</label>
+                        <input type="number" id="instTotalAmount" step="0.01" required placeholder="12000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Taksit Sayısı (Ay)</label>
+                        <input type="number" id="instMonths" min="1" max="60" required value="6" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Başlangıç Ayı & Yılı</label>
+                    <input type="month" id="instStartMonth" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Kategori</label>
+                    <select id="instCategory" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500">
+                        <!-- Dynamic -->
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('installmentModal')" class="px-4 py-2 text-xs bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700">İptal</button>
+                    <button type="submit" class="px-4 py-2 text-xs bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-500">Kaydet ve Taksitlendir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Sabit Gider Ekle / Düzenle -->
+    <div id="fixedModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-check text-sky-400"></i> Sabit Gider Ekle / Düzenle
+                </h3>
+                <button onclick="closeModal('fixedModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="fixedForm" onsubmit="handleFixedSubmit(event)" class="space-y-3">
+                <input type="hidden" id="fixedEditId">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Gider Adı</label>
+                    <input type="text" id="fixedTitle" required placeholder="Örn: Ev Kirası / İnternet Faturası" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Aylık Tutar (₺)</label>
+                    <input type="number" id="fixedAmount" step="0.01" required placeholder="1500" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Kategori</label>
+                    <select id="fixedCategory" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500">
+                        <!-- Dynamic -->
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('fixedModal')" class="px-4 py-2 text-xs bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700">İptal</button>
+                    <button type="submit" class="px-4 py-2 text-xs bg-sky-600 text-white font-medium rounded-xl hover:bg-sky-500">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Yeni Kategori Ekle -->
+    <div id="categoryModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-tags text-purple-400"></i> Yeni Kategori Ekle
+                </h3>
+                <button onclick="closeModal('categoryModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="categoryForm" onsubmit="handleCategorySubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Kategori Adı</label>
+                    <input type="text" id="catName" required placeholder="Örn: Evcil Hayvan" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Renk</label>
+                    <input type="color" id="catColor" value="#8b5cf6" class="w-full h-10 bg-slate-800 border border-slate-700 rounded-xl px-2 py-1 cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Alt Kategoriler (Virgülle ayırın)</label>
+                    <input type="text" id="catSubCategories" placeholder="Örn: Mama, Vet Kontrol, Oyuncak" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-purple-500">
+                    <p class="text-[10px] text-slate-400 mt-1">* 'Diğer' seçeneği otomatik olarak eklenecektir.</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('categoryModal')" class="px-4 py-2 text-xs bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700">İptal</button>
+                    <button type="submit" class="px-4 py-2 text-xs bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-500">Kategori Oluştur</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Alt Kategori Ekle -->
+    <div id="subCategoryModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100">Alt Kategori Ekle</h3>
+                <button onclick="closeModal('subCategoryModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="subCategoryForm" onsubmit="handleSubCategorySubmit(event)" class="space-y-3">
+                <input type="hidden" id="targetMainCategory">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Alt Kategori Adı</label>
+                    <input type="text" id="subCatName" required placeholder="Örn: İnternet Faturası" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-purple-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('subCategoryModal')" class="px-4 py-2 text-xs bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700">İptal</button>
+                    <button type="submit" class="px-4 py-2 text-xs bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-500">Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT APPLICATION LOGIC -->
+    <script>
+        // --- INITIAL STATE & STORAGE ---
+        const MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+        
+        let currentDate = new Date(); // Current viewing month state
+        let currentYear = currentDate.getFullYear();
+        let currentMonth = currentDate.getMonth();
+
+        // Standard Default Categories
+        const defaultCategories = [
+            { name: "Mutfak & Market", color: "#10b981", subs: ["Market Alışverişi", "Manav", "Kasap", "Diğer"] },
+            { name: "Faturalar & Konut", color: "#0284c7", subs: ["Kira", "Elektrik", "Su", "Doğalgaz", "İnternet", "Diğer"] },
+            { name: "Ulaşım & Araç", color: "#f59e0b", subs: ["Yakıt", "Toplu Taşıma", "Bakım / Servis", "Diğer"] },
+            { name: "Eğlence & Sosyal", color: "#ec4899", subs: ["Dışarıda Yemek", "Sinema / Etkinlik", "Abonelikler", "Diğer"] },
+            { name: "Sağlık & Bakım", color: "#ef4444", subs: ["Eczane", "Hastane", "Kişisel Bakım", "Diğer"] },
+            { name: "Giyim & Alışveriş", color: "#8b5cf6", subs: ["Kıyafet", "Elektronik", "Diğer"] },
+            { name: "Genel / Diğer", color: "#64748b", subs: ["Beklenmedik", "Diğer"] }
+        ];
+
+        let appData = {
+            incomes: {}, // format: {"2026-09": [{id, title, amount}]}
+            categories: [],
+            fixedExpenses: [], // Array of { id, title, amount, category, active }
+            installments: [], // Array of { id, title, totalAmount, months, startYear, startMonth, category }
+            transactions: [] // Array of { id, title, amount, category, subCategory, date (YYYY-MM-DD) }
+        };
+
+        // --- CHART INSTANCES ---
+        let categoryChartInstance = null;
+        let breakdownChartInstance = null;
+        let projectionChartInstance = null;
+
+        // --- INIT LOAD ---
+        window.onload = function() {
+            loadFromLocalStorage();
+            updateCurrentMonthDisplay();
+            renderAll();
+            
+            // Set default date inputs to today
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('txDate').value = todayStr;
+            
+            // Set default month input
+            const monthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+            document.getElementById('instStartMonth').value = monthStr;
+        };
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('butcem_pro_data');
+            if (saved) {
+                try {
+                    appData = JSON.parse(saved);
+                } catch(e) {
+                    console.error("Localstorage parse error", e);
+                }
+            }
+
+            // Migration step for previous single number income schema
+            if (appData.incomes) {
+                Object.keys(appData.incomes).forEach(key => {
+                    if (typeof appData.incomes[key] === 'number') {
+                        const oldVal = appData.incomes[key];
+                        appData.incomes[key] = oldVal > 0 ? [{ id: 'inc_old_' + Date.now(), title: 'Maaş / Ana Gelir', amount: oldVal }] : [];
+                    }
+                });
+            } else {
+                appData.incomes = {};
+            }
+
+            if (!appData.categories || appData.categories.length === 0) {
+                appData.categories = defaultCategories;
+            }
+            // Ensure 'Diğer' exists in all subcategories
+            appData.categories.forEach(c => {
+                if (!c.subs.includes("Diğer")) {
+                    c.subs.push("Diğer");
+                }
+            });
+        }
+
+        function saveData() {
+            localStorage.setItem('butcem_pro_data', JSON.stringify(appData));
+            renderAll();
+        }
+
+        // --- HELPER FUNCTIONS ---
+        function getYearMonthKey(year, month) {
+            return `${year}-${String(month + 1).padStart(2, '0')}`;
+        }
+
+        function getCurrentKey() {
+            return getYearMonthKey(currentYear, currentMonth);
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount || 0);
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            updateCurrentMonthDisplay();
+            renderAll();
+        }
+
+        function updateCurrentMonthDisplay() {
+            document.getElementById('currentMonthDisplay').innerText = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderAll() {
+            renderOverviewCards();
+            renderDashLists();
+            renderTransactions();
+            renderInstallments();
+            renderFixedExpenses();
+            renderCategories();
+            renderCategoryDropdowns();
+            renderCharts();
+        }
+
+        // 1. Calculate Monthly Figures
+        function getMonthlyCalculations(year, month) {
+            const key = getYearMonthKey(year, month);
+            const incomeList = appData.incomes[key] || [];
+            const income = incomeList.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+            // Fixed Expenses Sum (Active ones)
+            const fixedTotal = appData.fixedExpenses
+                .filter(f => f.active !== false)
+                .reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0);
+
+            // Active Installments for this specified month
+            const activeInstallments = [];
+            let installmentTotal = 0;
+
+            appData.installments.forEach(inst => {
+                // Calculate month difference from start date
+                const startTotalMonths = inst.startYear * 12 + (inst.startMonth - 1);
+                const targetTotalMonths = year * 12 + month;
+                const monthDiff = targetTotalMonths - startTotalMonths;
+
+                if (monthDiff >= 0 && monthDiff < inst.months) {
+                    const monthlyPayment = inst.totalAmount / inst.months;
+                    installmentTotal += monthlyPayment;
+                    activeInstallments.push({
+                        ...inst,
+                        currentInstallmentNumber: monthDiff + 1,
+                        monthlyPayment
+                    });
+                }
+            });
+
+            // Variable Transactions for this month
+            const monthTx = appData.transactions.filter(tx => {
+                const txDate = new Date(tx.date);
+                return txDate.getFullYear() === year && txDate.getMonth() === month;
+            });
+
+            const variableTotal = monthTx.reduce((sum, tx) => sum + (parseFloat(tx.amount) || 0), 0);
+
+            const totalExpense = fixedTotal + installmentTotal + variableTotal;
+            const remaining = income - totalExpense;
+
+            return {
+                income,
+                incomeList,
+                fixedTotal,
+                installmentTotal,
+                variableTotal,
+                totalExpense,
+                remaining,
+                activeInstallments,
+                monthTx
+            };
+        }
+
+        // Render Metric Summary Cards
+        function renderOverviewCards() {
+            const calc = getMonthlyCalculations(currentYear, currentMonth);
+
+            document.getElementById('cardIncome').innerText = formatCurrency(calc.income);
+            document.getElementById('cardFixedAndInstallment').innerText = formatCurrency(calc.fixedTotal + calc.installmentTotal);
+            document.getElementById('cardVariable').innerText = formatCurrency(calc.variableTotal);
+            
+            const remainingEl = document.getElementById('cardRemaining');
+            remainingEl.innerText = formatCurrency(calc.remaining);
+            if (calc.remaining < 0) {
+                remainingEl.className = "text-lg sm:text-2xl font-bold text-rose-500";
+            } else {
+                remainingEl.className = "text-lg sm:text-2xl font-bold text-emerald-400";
+            }
+
+            document.getElementById('cardTotalExpenseSub').innerText = `Toplam Gider: ${formatCurrency(calc.totalExpense)}`;
+        }
+
+        // Render Dashboard Sub-lists
+        function renderDashLists() {
+            const calc = getMonthlyCalculations(currentYear, currentMonth);
+
+            // Active Installments Table
+            const instContainer = document.getElementById('dashInstallmentsList');
+            document.getElementById('dashInstallmentBadge').innerText = `${calc.activeInstallments.length} Taksit`;
+
+            if (calc.activeInstallments.length === 0) {
+                instContainer.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-500 italic">Bu ay için aktif taksit bulunmuyor.</td></tr>`;
+            } else {
+                instContainer.innerHTML = calc.activeInstallments.map(item => `
+                    <tr class="hover:bg-slate-800/40">
+                        <td class="py-2.5 px-3 font-medium text-slate-200">${item.title}</td>
+                        <td class="py-2.5 px-3 text-slate-400">${item.category}</td>
+                        <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-slate-800 text-amber-400 text-[10px] font-semibold">${item.currentInstallmentNumber} / ${item.months} Ay</span></td>
+                        <td class="py-2.5 px-3 text-right font-semibold text-slate-100">${formatCurrency(item.monthlyPayment)}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Fixed Expenses Table
+            const fixedContainer = document.getElementById('dashFixedList');
+            const activeFixed = appData.fixedExpenses.filter(f => f.active !== false);
+
+            if (activeFixed.length === 0) {
+                fixedContainer.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-slate-500 italic">Aktif sabit gider tanımlanmamış.</td></tr>`;
+            } else {
+                fixedContainer.innerHTML = activeFixed.map(item => `
+                    <tr class="hover:bg-slate-800/40">
+                        <td class="py-2.5 px-3 font-medium text-slate-200">${item.title}</td>
+                        <td class="py-2.5 px-3 text-slate-400">${item.category}</td>
+                        <td class="py-2.5 px-3 text-right font-semibold text-slate-100">${formatCurrency(item.amount)}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Recent Variable Transactions
+            const recentContainer = document.getElementById('dashRecentTransactions');
+            const recent = [...calc.monthTx].reverse().slice(0, 5);
+
+            if (recent.length === 0) {
+                recentContainer.innerHTML = `<p class="text-center py-4 text-slate-500 italic text-xs">Bu ay henüz ekstra harcama girilmemiş.</p>`;
+            } else {
+                recentContainer.innerHTML = recent.map(tx => `
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/40 border border-slate-800 hover:border-slate-700 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs">
+                                <i class="fa-solid fa-receipt"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-semibold text-slate-200">${tx.title}</h4>
+                                <p class="text-[10px] text-slate-400">${tx.category} • ${tx.subCategory || 'Diğer'} • ${tx.date}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs font-bold text-rose-400">-${formatCurrency(tx.amount)}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Render Anlık Harcamalar Table
+        function renderTransactions() {
+            const query = (document.getElementById('searchTransactionInput')?.value || '').toLowerCase();
+            const calc = getMonthlyCalculations(currentYear, currentMonth);
+
+            const filtered = calc.monthTx.filter(tx => 
+                tx.title.toLowerCase().includes(query) || 
+                tx.category.toLowerCase().includes(query) || 
+                (tx.subCategory && tx.subCategory.toLowerCase().includes(query))
+            );
+
+            const tbody = document.getElementById('fullTransactionsTable');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-500 italic">Harcama kaydı bulunamadı.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.reverse().map(tx => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="py-3 px-4 text-slate-400">${tx.date}</td>
+                    <td class="py-3 px-4 font-semibold text-slate-200">${tx.title}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px]">${tx.category}</span></td>
+                    <td class="py-3 px-4 text-slate-400">${tx.subCategory || 'Diğer'}</td>
+                    <td class="py-3 px-4 text-right font-bold text-rose-400">-${formatCurrency(tx.amount)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="deleteTransaction('${tx.id}')" class="text-slate-500 hover:text-rose-400 p-1"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Render Installments List
+        function renderInstallments() {
+            const container = document.getElementById('installmentsCardsContainer');
+            if (appData.installments.length === 0) {
+                container.innerHTML = `<div class="col-span-full glass-card p-8 text-center text-slate-500 italic">Henüz taksitli ödeme eklenmemiş.</div>`;
+                return;
+            }
+
+            container.innerHTML = appData.installments.map(inst => {
+                const monthly = inst.totalAmount / inst.months;
+                // Calculate current month installment status
+                const startTotal = inst.startYear * 12 + (inst.startMonth - 1);
+                const currentTotal = currentYear * 12 + currentMonth;
+                const passed = currentTotal - startTotal + 1;
+                
+                let statusBadge = '';
+                if (passed <= 0) {
+                    statusBadge = `<span class="px-2 py-0.5 text-[10px] bg-sky-500/10 text-sky-400 rounded-md">Gelecekte Başlayacak</span>`;
+                } else if (passed > inst.months) {
+                    statusBadge = `<span class="px-2 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-400 rounded-md">Tamamlandı</span>`;
+                } else {
+                    statusBadge = `<span class="px-2 py-0.5 text-[10px] bg-amber-500/10 text-amber-400 rounded-md">Devam Ediyor (${passed}/${inst.months})</span>`;
+                }
+
+                return `
+                    <div class="glass-card p-5 rounded-2xl space-y-3 relative">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold text-sm text-slate-100">${inst.title}</h3>
+                                <p class="text-xs text-slate-400">${inst.category} • Başlangıç: ${inst.startYear}-${String(inst.startMonth).padStart(2, '0')}</p>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+                            <div>
+                                <p class="text-[10px] text-slate-400">Aylık Taksit</p>
+                                <p class="text-sm font-bold text-amber-400">${formatCurrency(monthly)}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400">Toplam Borç</p>
+                                <p class="text-sm font-bold text-slate-200">${formatCurrency(inst.totalAmount)}</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-end pt-2 border-t border-slate-800/60">
+                            <button onclick="deleteInstallment('${inst.id}')" class="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1"><i class="fa-solid fa-trash"></i> Taksiti Sil</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render Fixed Expenses
+        function renderFixedExpenses() {
+            const tbody = document.getElementById('fixedExpensesTable');
+            if (appData.fixedExpenses.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500 italic">Sabit gider tanımlanmamış.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = appData.fixedExpenses.map(item => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="py-3 px-4 font-semibold text-slate-200">${item.title}</td>
+                    <td class="py-3 px-4 text-slate-400">${item.category}</td>
+                    <td class="py-3 px-4 text-right font-bold text-sky-400">${formatCurrency(item.amount)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="toggleFixedActive('${item.id}')" class="px-2.5 py-1 rounded-full text-[10px] font-semibold ${item.active !== false ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'}">
+                            ${item.active !== false ? 'Aktif' : 'Pasif'}
+                        </button>
+                    </td>
+                    <td class="py-3 px-4 text-center space-x-2">
+                        <button onclick="editFixed('${item.id}')" class="text-slate-400 hover:text-indigo-400 p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteFixed('${item.id}')" class="text-slate-500 hover:text-rose-400 p-1"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Render Categories
+        function renderCategories() {
+            const container = document.getElementById('categoriesGrid');
+            container.innerHTML = appData.categories.map((cat, idx) => `
+                <div class="glass-card p-4 rounded-2xl space-y-3 border-l-4" style="border-left-color: ${cat.color}">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-sm text-slate-100">${cat.name}</h3>
+                        <button onclick="openSubCategoryModal(${idx})" title="Alt Kategori Ekle" class="p-1 text-slate-400 hover:text-purple-400 text-xs"><i class="fa-solid fa-plus"></i> Alt Kategori</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        ${cat.subs.map(s => `<span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] border border-slate-700/50">${s}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update Dropdowns Across Modals
+        function renderCategoryDropdowns() {
+            const mainCats = appData.categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            
+            document.getElementById('txCategory').innerHTML = mainCats;
+            document.getElementById('instCategory').innerHTML = mainCats;
+            document.getElementById('fixedCategory').innerHTML = mainCats;
+
+            updateSubCategoryDropdown('txCategory', 'txSubCategory');
+        }
+
+        function updateSubCategoryDropdown(catSelectId, subSelectId) {
+            const selectedCatName = document.getElementById(catSelectId).value;
+            const catObj = appData.categories.find(c => c.name === selectedCatName);
+            const subSelect = document.getElementById(subSelectId);
+
+            if (catObj && catObj.subs) {
+                subSelect.innerHTML = catObj.subs.map(s => `<option value="${s}">${s}</option>`).join('');
+            } else {
+                subSelect.innerHTML = `<option value="Diğer">Diğer</option>`;
+            }
+        }
+
+        // --- HANDLERS & ACTIONS ---
+
+        // Gelir Yönetimi İşlemleri
+        function openIncomeModal() {
+            renderIncomeModalList();
+            document.getElementById('incomeModal').classList.remove('hidden');
+        }
+
+        function renderIncomeModalList() {
+            const key = getCurrentKey();
+            const list = appData.incomes[key] || [];
+            const container = document.getElementById('incomeItemsList');
+            const totalEl = document.getElementById('incomeModalTotal');
+
+            const total = list.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+            totalEl.innerText = `Toplam: ${formatCurrency(total)}`;
+
+            if (list.length === 0) {
+                container.innerHTML = `<p class="text-center py-4 text-slate-500 italic text-xs">Bu aya ait kaydedilmiş gelir bulunmuyor.</p>`;
+                return;
+            }
+
+            container.innerHTML = list.map(item => `
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-dollar-to-slot text-emerald-400 text-sm"></i>
+                        <span class="text-xs font-medium text-slate-200">${item.title}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold text-emerald-400">+${formatCurrency(item.amount)}</span>
+                        <button onclick="deleteIncomeItem('${item.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addIncomeItem(e) {
+            e.preventDefault();
+            const key = getCurrentKey();
+            if (!appData.incomes[key]) {
+                appData.incomes[key] = [];
+            }
+
+            const title = document.getElementById('incTitle').value.trim();
+            const amount = parseFloat(document.getElementById('incAmount').value) || 0;
+
+            if (title && amount > 0) {
+                appData.incomes[key].push({
+                    id: 'inc_' + Date.now(),
+                    title,
+                    amount
+                });
+                saveData();
+                renderIncomeModalList();
+                document.getElementById('incomeForm').reset();
+            }
+        }
+
+        function deleteIncomeItem(id) {
+            const key = getCurrentKey();
+            if (appData.incomes[key]) {
+                appData.incomes[key] = appData.incomes[key].filter(i => i.id !== id);
+                saveData();
+                renderIncomeModalList();
+            }
+        }
+
+        // Harcama Ekle
+        function openTransactionModal() {
+            document.getElementById('transactionModal').classList.remove('hidden');
+        }
+
+        function handleTransactionSubmit(e) {
+            e.preventDefault();
+            const newItem = {
+                id: 'tx_' + Date.now(),
+                title: document.getElementById('txTitle').value,
+                amount: parseFloat(document.getElementById('txAmount').value) || 0,
+                category: document.getElementById('txCategory').value,
+                subCategory: document.getElementById('txSubCategory').value,
+                date: document.getElementById('txDate').value
+            };
+            appData.transactions.push(newItem);
+            saveData();
+            closeModal('transactionModal');
+            document.getElementById('transactionForm').reset();
+        }
+
+        function deleteTransaction(id) {
+            appData.transactions = appData.transactions.filter(t => t.id !== id);
+            saveData();
+        }
+
+        // Taksit Ekle
+        function openInstallmentModal() {
+            document.getElementById('installmentModal').classList.remove('hidden');
+        }
+
+        function handleInstallmentSubmit(e) {
+            e.preventDefault();
+            const startMonthVal = document.getElementById('instStartMonth').value; // "YYYY-MM"
+            const [y, m] = startMonthVal.split('-').map(Number);
+
+            const newItem = {
+                id: 'inst_' + Date.now(),
+                title: document.getElementById('instTitle').value,
+                totalAmount: parseFloat(document.getElementById('instTotalAmount').value) || 0,
+                months: parseInt(document.getElementById('instMonths').value) || 1,
+                startYear: y,
+                startMonth: m,
+                category: document.getElementById('instCategory').value
+            };
+            appData.installments.push(newItem);
+            saveData();
+            closeModal('installmentModal');
+            document.getElementById('installmentForm').reset();
+        }
+
+        function deleteInstallment(id) {
+            appData.installments = appData.installments.filter(i => i.id !== id);
+            saveData();
+        }
+
+        // Sabit Gider Ekle / Düzenle
+        function openFixedModal() {
+            document.getElementById('fixedEditId').value = '';
+            document.getElementById('fixedForm').reset();
+            document.getElementById('fixedModal').classList.remove('hidden');
+        }
+
+        function handleFixedSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('fixedEditId').value;
+            const title = document.getElementById('fixedTitle').value;
+            const amount = parseFloat(document.getElementById('fixedAmount').value) || 0;
+            const category = document.getElementById('fixedCategory').value;
+
+            if (editId) {
+                const item = appData.fixedExpenses.find(f => f.id === editId);
+                if (item) {
+                    item.title = title;
+                    item.amount = amount;
+                    item.category = category;
+                }
+            } else {
+                appData.fixedExpenses.push({
+                    id: 'fix_' + Date.now(),
+                    title,
+                    amount,
+                    category,
+                    active: true
+                });
+            }
+            saveData();
+            closeModal('fixedModal');
+        }
+
+        function editFixed(id) {
+            const item = appData.fixedExpenses.find(f => f.id === id);
+            if (!item) return;
+            document.getElementById('fixedEditId').value = item.id;
+            document.getElementById('fixedTitle').value = item.title;
+            document.getElementById('fixedAmount').value = item.amount;
+            document.getElementById('fixedCategory').value = item.category;
+            document.getElementById('fixedModal').classList.remove('hidden');
+        }
+
+        function toggleFixedActive(id) {
+            const item = appData.fixedExpenses.find(f => f.id === id);
+            if (item) {
+                item.active = item.active === false ? true : false;
+                saveData();
+            }
+        }
+
+        function deleteFixed(id) {
+            appData.fixedExpenses = appData.fixedExpenses.filter(f => f.id !== id);
+            saveData();
+        }
+
+        // Kategori Yönetimi
+        function openCategoryModal() {
+            document.getElementById('categoryModal').classList.remove('hidden');
+        }
+
+        function handleCategorySubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('catName').value;
+            const color = document.getElementById('catColor').value;
+            const rawSubs = document.getElementById('catSubCategories').value;
+
+            let subs = rawSubs.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            if (!subs.includes('Diğer')) subs.push('Diğer');
+
+            appData.categories.push({ name, color, subs });
+            saveData();
+            closeModal('categoryModal');
+            document.getElementById('categoryForm').reset();
+        }
+
+        function openSubCategoryModal(categoryIndex) {
+            document.getElementById('targetMainCategory').value = categoryIndex;
+            document.getElementById('subCategoryModal').classList.remove('hidden');
+        }
+
+        function handleSubCategorySubmit(e) {
+            e.preventDefault();
+            const idx = parseInt(document.getElementById('targetMainCategory').value);
+            const subName = document.getElementById('subCatName').value.trim();
+
+            if (appData.categories[idx] && subName) {
+                if (!appData.categories[idx].subs.includes(subName)) {
+                    // Place before 'Diğer' if possible
+                    const digerIdx = appData.categories[idx].subs.indexOf("Diğer");
+                    if (digerIdx !== -1) {
+                        appData.categories[idx].subs.splice(digerIdx, 0, subName);
+                    } else {
+                        appData.categories[idx].subs.push(subName);
+                    }
+                }
+                saveData();
+            }
+            closeModal('subCategoryModal');
+            document.getElementById('subCategoryForm').reset();
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // --- JSON DATA IMPORT / EXPORT ---
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `butcem_yedek_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importJSON(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && typeof parsed === 'object') {
+                        appData = parsed;
+                        // Migration Check on Import
+                        if (appData.incomes) {
+                            Object.keys(appData.incomes).forEach(key => {
+                                if (typeof appData.incomes[key] === 'number') {
+                                    const oldVal = appData.incomes[key];
+                                    appData.incomes[key] = oldVal > 0 ? [{ id: 'inc_old_' + Date.now(), title: 'Maaş / Ana Gelir', amount: oldVal }] : [];
+                                }
+                            });
+                        }
+                        saveData();
+                        alert('Veriler başarıyla yüklendi!');
+                    }
+                } catch(err) {
+                    alert('Geçersiz JSON dosyası!');
+                }
+            };
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0]);
+            }
+        }
+
+        // --- NAVIGATION BETWEEN TABS ---
+        function switchTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Show selected
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            // Update Desktop Nav styles
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+            });
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-white bg-indigo-600 shadow-lg shadow-indigo-600/30";
+            }
+
+            // Update Mobile Nav styles
+            document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+                btn.className = "mobile-nav-btn flex flex-col items-center gap-0.5 p-1.5 text-slate-400";
+            });
+            const activeMobile = document.getElementById(`mobile-nav-${tabId}`);
+            if (activeMobile) {
+                activeMobile.className = "mobile-nav-btn flex flex-col items-center gap-0.5 p-1.5 text-indigo-400";
+            }
+
+            if (tabId === 'statistics') {
+                renderCharts();
+            }
+        }
+
+        // --- DETAILED STATISTICS / CHART.JS ---
+        function renderCharts() {
+            const calc = getMonthlyCalculations(currentYear, currentMonth);
+
+            // Chart 1: Category Breakdown (Pie)
+            const catTotals = {};
+            // Group variable tx by category
+            calc.monthTx.forEach(tx => {
+                catTotals[tx.category] = (catTotals[tx.category] || 0) + tx.amount;
+            });
+            // Add fixed expenses by category
+            appData.fixedExpenses.filter(f => f.active !== false).forEach(f => {
+                catTotals[f.category] = (catTotals[f.category] || 0) + f.amount;
+            });
+            // Add installments by category
+            calc.activeInstallments.forEach(i => {
+                catTotals[i.category] = (catTotals[i.category] || 0) + i.monthlyPayment;
+            });
+
+            const labels = Object.keys(catTotals);
+            const dataValues = Object.values(catTotals);
+
+            const ctx1 = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            
+            categoryChartInstance = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.length ? labels : ['Harcama Yok'],
+                    datasets: [{
+                        data: dataValues.length ? dataValues : [1],
+                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#8b5cf6', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } }
+                    }
+                }
+            });
+
+            // Chart 2: Expense Type Breakdown (Fixed vs Installments vs Variable)
+            const ctx2 = document.getElementById('breakdownChart').getContext('2d');
+            if (breakdownChartInstance) breakdownChartInstance.destroy();
+
+            breakdownChartInstance = new Chart(ctx2, {
+                type: 'pie',
+                data: {
+                    labels: ['Sabit Giderler', 'Taksitler', 'Ekstra Harcamalar'],
+                    datasets: [{
+                        data: [calc.fixedTotal, calc.installmentTotal, calc.variableTotal],
+                        backgroundColor: ['#38bdf8', '#fbbf24', '#f43f5e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } }
+                    }
+                }
+            });
+
+            // Chart 3: Future 6-Month Installment Projection
+            const futureLabels = [];
+            const futureValues = [];
+
+            for (let i = 0; i < 6; i++) {
+                const targetM = (currentMonth + i) % 12;
+                const targetY = currentYear + Math.floor((currentMonth + i) / 12);
+                futureLabels.push(`${MONTH_NAMES[targetM].substring(0,3)} ${targetY}`);
+
+                const futureCalc = getMonthlyCalculations(targetY, targetM);
+                futureValues.push(futureCalc.installmentTotal);
+            }
+
+            const ctx3 = document.getElementById('projectionChart').getContext('2d');
+            if (projectionChartInstance) projectionChartInstance.destroy();
+
+            projectionChartInstance = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: futureLabels,
+                    datasets: [{
+                        label: 'Aylık Taksit Yükü (₺)',
+                        data: futureValues,
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
