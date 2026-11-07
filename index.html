@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem | Kişisel Finans ve Bütçe Takip Portalı</title>
+    <title>Bütçem Pro | Kişisel Finans ve Bütçe Takip Portalı</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -63,6 +63,15 @@
         }
         ::-webkit-scrollbar-thumb:hover {
             background: #475569;
+        }
+        .detail-row {
+            transition: background 0.15s;
+        }
+        .detail-row:hover {
+            background: rgba(51, 65, 85, 0.4);
+        }
+        .subcat-row {
+            background: rgba(15, 23, 42, 0.5);
         }
     </style>
 </head>
@@ -399,7 +408,7 @@
                 <div class="glass-card p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3">
                     <div>
                         <h2 class="font-bold text-base text-slate-100">Detaylı Finansal İstatistikler</h2>
-                        <p class="text-xs text-slate-400">Aylık dağılımlar, taksit projeksiyonları ve harcama analizleri.</p>
+                        <p class="text-xs text-slate-400">Aylık dağılımlar, taksit projeksiyonları ve kategori bazlı harcama analizleri.</p>
                     </div>
                 </div>
 
@@ -433,6 +442,33 @@
                     </h3>
                     <div class="relative h-72 w-full">
                         <canvas id="projectionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- DETAILED CATEGORY & SUBCATEGORY BREAKDOWN TABLE -->
+                <div class="glass-card p-5 rounded-2xl space-y-3">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-list-ul text-purple-400"></i> Kategori & Alt Kategori Bazlı Harcama Detayı
+                        </h3>
+                        <span class="text-[11px] text-slate-400 bg-slate-800/70 px-2.5 py-1 rounded-lg">Sabit + Taksit + Ekstra harcamalar dahil</span>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-800">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="text-[11px] uppercase bg-slate-800/80 text-slate-400 border-b border-slate-700">
+                                <tr>
+                                    <th class="py-3 px-4">Kategori / Alt Kategori</th>
+                                    <th class="py-3 px-3 text-right">Sabit</th>
+                                    <th class="py-3 px-3 text-right">Taksit</th>
+                                    <th class="py-3 px-3 text-right">Ekstra</th>
+                                    <th class="py-3 px-4 text-right">Toplam</th>
+                                    <th class="py-3 px-4 text-right">Pay (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailedCategoryBreakdown" class="divide-y divide-slate-800/70">
+                                <!-- Dynamic Detailed Rows -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -808,6 +844,7 @@
             renderCategories();
             renderCategoryDropdowns();
             renderCharts();
+            renderDetailedCategoryBreakdown(); // new detailed table
         }
 
         // 1. Calculate Monthly Figures
@@ -1389,6 +1426,7 @@
 
             if (tabId === 'statistics') {
                 renderCharts();
+                renderDetailedCategoryBreakdown();
             }
         }
 
@@ -1499,6 +1537,151 @@
                 }
             });
         }
+
+        // --- NEW: Detailed Category & Subcategory Breakdown Table ---
+        function renderDetailedCategoryBreakdown() {
+            const calc = getMonthlyCalculations(currentYear, currentMonth);
+            const container = document.getElementById('detailedCategoryBreakdown');
+
+            // Build a map: category -> { fixed, installment, variable, subs: { subName: { variable, fixed, installment } } }
+            const categoryMap = {};
+
+            // 1. Initialize categories from appData.categories
+            appData.categories.forEach(cat => {
+                categoryMap[cat.name] = {
+                    fixed: 0,
+                    installment: 0,
+                    variable: 0,
+                    subs: {}
+                };
+                cat.subs.forEach(sub => {
+                    categoryMap[cat.name].subs[sub] = { fixed: 0, installment: 0, variable: 0 };
+                });
+            });
+
+            // Helper to ensure a subcategory exists in the map
+            function ensureSub(catName, subName) {
+                if (!categoryMap[catName]) {
+                    categoryMap[catName] = { fixed: 0, installment: 0, variable: 0, subs: {} };
+                }
+                if (!categoryMap[catName].subs[subName]) {
+                    categoryMap[catName].subs[subName] = { fixed: 0, installment: 0, variable: 0 };
+                }
+            }
+
+            // 2. Fixed expenses
+            appData.fixedExpenses.filter(f => f.active !== false).forEach(f => {
+                const catName = f.category || 'Genel / Diğer';
+                if (!categoryMap[catName]) {
+                    categoryMap[catName] = { fixed: 0, installment: 0, variable: 0, subs: {} };
+                }
+                categoryMap[catName].fixed += f.amount;
+                // Fixed expenses don't have a subcategory in our model, so we put them under "Genel" (not listed in table) but we track at category level.
+                // For display we can show it under a generic "Diğer" sub, but better not to show sub for fixed.
+                // We'll just aggregate at category level.
+            });
+
+            // 3. Installments
+            calc.activeInstallments.forEach(inst => {
+                const catName = inst.category || 'Genel / Diğer';
+                if (!categoryMap[catName]) {
+                    categoryMap[catName] = { fixed: 0, installment: 0, variable: 0, subs: {} };
+                }
+                categoryMap[catName].installment += inst.monthlyPayment;
+                // Installments also have no subcategory, so just category level.
+            });
+
+            // 4. Variable transactions
+            calc.monthTx.forEach(tx => {
+                const catName = tx.category || 'Genel / Diğer';
+                const subName = tx.subCategory || 'Diğer';
+                ensureSub(catName, subName);
+                categoryMap[catName].variable += tx.amount;
+                categoryMap[catName].subs[subName].variable += tx.amount;
+            });
+
+            // Now compute total for each category
+            let grandTotal = 0;
+            Object.keys(categoryMap).forEach(catName => {
+                const cat = categoryMap[catName];
+                cat.total = cat.fixed + cat.installment + cat.variable;
+                grandTotal += cat.total;
+            });
+
+            // Build HTML
+            let html = '';
+            const sortedCats = Object.keys(categoryMap).sort((a, b) => categoryMap[b].total - categoryMap[a].total);
+
+            sortedCats.forEach(catName => {
+                const cat = categoryMap[catName];
+                if (cat.total === 0 && Object.values(cat.subs).every(s => s.variable === 0)) {
+                    // Skip completely empty categories to keep it clean, but we can still show them? Skip for brevity.
+                    // Actually, maybe show only non-zero categories.
+                    if (cat.total === 0) return;
+                }
+
+                const catPay = grandTotal > 0 ? ((cat.total / grandTotal) * 100).toFixed(1) : '0.0';
+
+                // Category row
+                html += `
+                    <tr class="detail-row font-semibold bg-slate-800/30 border-t border-slate-700/60">
+                        <td class="py-2.5 px-4 text-slate-100 flex items-center gap-2">
+                            <i class="fa-solid fa-folder text-indigo-400 text-xs"></i> ${catName}
+                        </td>
+                        <td class="py-2.5 px-3 text-right text-sky-400">${formatCurrency(cat.fixed)}</td>
+                        <td class="py-2.5 px-3 text-right text-amber-400">${formatCurrency(cat.installment)}</td>
+                        <td class="py-2.5 px-3 text-right text-rose-400">${formatCurrency(cat.variable)}</td>
+                        <td class="py-2.5 px-4 text-right text-slate-100 font-bold">${formatCurrency(cat.total)}</td>
+                        <td class="py-2.5 px-4 text-right text-slate-300">${catPay}%</td>
+                    </tr>
+                `;
+
+                // Subcategory rows (only if any variable spending)
+                const subKeys = Object.keys(cat.subs).filter(subName => cat.subs[subName].variable > 0);
+                subKeys.sort((a, b) => cat.subs[b].variable - cat.subs[a].variable);
+
+                subKeys.forEach(subName => {
+                    const sub = cat.subs[subName];
+                    const subTotal = sub.variable; // only variable spending is recorded at subcategory level
+                    if (subTotal === 0) return;
+                    const subPay = grandTotal > 0 ? ((subTotal / grandTotal) * 100).toFixed(1) : '0.0';
+                    html += `
+                        <tr class="subcat-row text-slate-300 border-t border-slate-800/40">
+                            <td class="py-1.5 px-4 pl-10 text-slate-400 text-[11px] flex items-center gap-2">
+                                <i class="fa-solid fa-turn-up rotate-90 text-slate-500 text-[10px]"></i> ${subName}
+                            </td>
+                            <td class="py-1.5 px-3 text-right text-slate-500">-</td>
+                            <td class="py-1.5 px-3 text-right text-slate-500">-</td>
+                            <td class="py-1.5 px-3 text-right text-rose-300/80">${formatCurrency(subTotal)}</td>
+                            <td class="py-1.5 px-4 text-right text-slate-400">${formatCurrency(subTotal)}</td>
+                            <td class="py-1.5 px-4 text-right text-slate-400">${subPay}%</td>
+                        </tr>
+                    `;
+                });
+            });
+
+            if (html === '') {
+                html = `<tr><td colspan="6" class="py-6 text-center text-slate-500 italic">Bu ay için harcama verisi bulunmuyor.</td></tr>`;
+            }
+
+            // Add grand total row
+            if (grandTotal > 0) {
+                html += `
+                    <tr class="bg-slate-800/70 font-bold border-t-2 border-indigo-500/30">
+                        <td class="py-3 px-4 text-slate-100">TOPLAM</td>
+                        <td class="py-3 px-3 text-right text-sky-400">${formatCurrency(calc.fixedTotal)}</td>
+                        <td class="py-3 px-3 text-right text-amber-400">${formatCurrency(calc.installmentTotal)}</td>
+                        <td class="py-3 px-3 text-right text-rose-400">${formatCurrency(calc.variableTotal)}</td>
+                        <td class="py-3 px-4 text-right text-indigo-300 text-base">${formatCurrency(grandTotal)}</td>
+                        <td class="py-3 px-4 text-right text-slate-200">100%</td>
+                    </tr>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Initial call already inside renderAll
     </script>
 </body>
 </html>
